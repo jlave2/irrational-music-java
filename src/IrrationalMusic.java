@@ -1,40 +1,36 @@
 import java.util.*;
 import javax.sound.midi.*;
 
-// Associate ints 0-11 with 12 note strings C-B
-class PitchDictionary {
-    private final HashMap<String, Integer> notes;
+class MidiScale {
+    private static final HashMap<String, Integer> notes = new HashMap<>();
     
-    // Constructor initializes key-value pairs
-    public PitchDictionary() {
-        notes = new HashMap<>();
-        notes.put("C", 0);
+    // Associate ints 0-11 with 12 note strings C-B
+    static {
+        notes.put("C",  0);
         notes.put("C#", 1);
-        notes.put("D", 2);
+        notes.put("Db", 1);
+        notes.put("D",  2);
         notes.put("D#", 3);
-        notes.put("E", 4);
-        notes.put("F", 5);
+        notes.put("Eb", 3);
+        notes.put("E",  4);
+        notes.put("F",  5);
         notes.put("F#", 6);
-        notes.put("G", 7);
+        notes.put("Gb", 6);
+        notes.put("G",  7);
         notes.put("G#", 8);
-        notes.put("A", 9);
+        notes.put("Ab", 8);
+        notes.put("A",  9);
         notes.put("A#", 10);
-        notes.put("B", 11);
+        notes.put("Bb", 10);
+        notes.put("B",  11);
     }
-    
-    public int getNumber(String noteName) {
-        return notes.get(noteName);
-    }
-}
 
-public class IrrationalMusic {
-    
-    static PitchDictionary pitchDict = new PitchDictionary();
-    
-    public static int[] getMidiScale(String rootNote, int octave, String scale) {
+    public static int[] getMidiScale(String rootNote, String octave, 
+            String scale) {
         // Calculates root MIDI note number according to table found at
         // http://bit.ly/1jcEza5
-        int rootMidiNote = (octave * 12) + pitchDict.getNumber(rootNote);
+        int rootMidiNote = (Integer.parseInt(octave) * 12) + 
+                notes.get(rootNote);
         
         int[] majIntervals = {0, 2, 4, 5, 7, 9, 11, 12, 14, 16};
         int[] minIntervals = {0, 2, 3, 5, 7, 8, 10, 12, 14, 15};
@@ -55,30 +51,71 @@ public class IrrationalMusic {
                 }
                 break;
         }
-
         return noteArray;
     }
+}
+
+class MidiPlayer {
+    private static int midiChannel;    // 0 is a piano
+    private static int noteVolume;   // between 0 and 127
     
-    public static void main(String[] args) {
-        final int CHANNEL = 0;    // 0 is a piano
-        final int VOLUME = 127;    // between 0 and 127
-        final int DURATION = 500; // in milliseconds
-        
-        try {
-            Synthesizer synth = MidiSystem.getSynthesizer();
-            synth.open();
-            MidiChannel[] channels = synth.getChannels();
-            
-            for(int midiNote : getMidiScale("C", 4, "maj")) {
-                channels[CHANNEL].noteOn(midiNote, VOLUME);
-                Thread.sleep(DURATION);
-                channels[CHANNEL].noteOff(midiNote);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        //System.out.println(Arrays.toString(midiNotes("C", 4, "maj")));
+    public MidiPlayer() {
+        this(0, 127);
     }
     
+    public MidiPlayer(int channel, int volume) {
+        midiChannel = channel;
+        noteVolume = volume;
+    }
+    
+    public static void playNote(int note, int duration) {
+        try {
+            Synthesizer synth = MidiSystem.getSynthesizer();
+            MidiChannel[] channels = synth.getChannels();
+            
+            synth.open();
+            channels[midiChannel].noteOn(note, noteVolume);
+            Thread.sleep(duration);
+            channels[midiChannel].noteOff(note);
+            synth.close();
+        } 
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void playSequence(int[] notesToPlay, int[] scale, 
+            String duration) {
+        try {
+            Synthesizer synth = MidiSystem.getSynthesizer();
+            MidiChannel[] channels = synth.getChannels();
+            
+            synth.open();
+            for(int note : notesToPlay) {
+                channels[midiChannel].noteOn(scale[note], noteVolume);
+                Thread.sleep(Integer.parseInt(duration));
+                channels[midiChannel].noteOff(scale[note]);
+            }
+            synth.close();
+        } 
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public class IrrationalMusic {
+    
+    public static void main(String[] args) {
+        
+        MidiPlayer player = new MidiPlayer();
+        String piStr = Double.toString(Math.PI);
+        piStr = piStr.substring(0,1) + piStr.substring(2);
+        int[] piArray = new int[piStr.length()];
+        for(int i=0; i<piStr.length(); i++) {
+            piArray[i] = Character.getNumericValue(piStr.toCharArray()[i]);
+        }
+        player.playSequence(piArray, MidiScale.getMidiScale(args[0], args[1], 
+                args[2]), args[3]);
+    }
 }
